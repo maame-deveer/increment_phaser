@@ -242,7 +242,18 @@
 
         const tx = await incrementContract.get_current_value();
 
-        await valueText.setText(tx.result);
+        try {
+            const { result } = await tx.signAndSend({
+                signTransaction: async (xdr) => {
+                    const { signedTxXdr } = await kit.signTransaction(xdr);
+                    return signedTxXdr;
+                },
+            });
+
+            await valueText.setText(result);
+        }catch (e) {
+            console.error(e);
+        }
     }
 
 </script>
