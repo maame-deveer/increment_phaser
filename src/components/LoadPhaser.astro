@@ -1,0 +1,248 @@
+<script>
+    import Phaser from "phaser";
+    import { kit, setPublicKey, loadedPublicKey } from '../stellar-wallets-kit';
+    import incrementContract from "../contracts/soroban_increment_contract";
+
+    const config = {
+        type: Phaser.AUTO,
+        width: 400,
+        height: 600,
+        scale: {
+            //mode: Phaser.Scale.FIT,
+            autoCenter: Phaser.Scale.CENTER_BOTH,
+        },
+        scene: {
+            preload: preload,
+            create: create,
+            update: update
+        }
+    }
+
+    var connect;
+    var disconnect;
+    var increment;
+    var decrement;
+    var reset;
+    var isConnected = false;
+    var value = 0;
+    var addressValue;
+    var valueText;
+
+    var game = new Phaser.Game(config);
+
+    function preload()
+    {
+        this.load.image('bg', 'phaser/assets/background.jpg');
+        this.load.image('connect', 'phaser/assets/connect_button.png');
+        this.load.image('increment', 'phaser/assets/increment_button.png');
+        this.load.image('decrement', 'phaser/assets/decrement_button.png');
+        this.load.image('reset', 'phaser/assets/reset_button.png');
+    }
+
+    function create()
+    {
+        //adding background
+        this.add.image(200, 200, 'bg');
+
+        //text values
+
+        //adress
+        addressValue = this.add.text(20, 20, 'user address', { fontSize: '20px', fill: '#000'});
+        addressValue.visible = false;
+
+        //value
+        valueText = this.add.text(180, 120, value , { fontSize: '70px', fill: '#000', fontStyle: 'bold' });
+        valueText.visible = false;
+        
+        //disconnect
+        disconnect = this.add.text(140, 490, 'Disconnect', { fontSize: '20px', fill: '#000', fontStyle: 'bold' }).setInteractive();
+        disconnect.visible = false;
+
+        //buttons
+
+        //connect button
+        connect = this.add.image(200,300,'connect').setScale(0.3).setInteractive();
+        //connect.visible = false;
+
+        //increment button
+        increment = this.add.image(200,250,'increment').setScale(0.3).setInteractive();
+        increment.visible = false;
+
+        //decrement button
+        decrement = this.add.image(200,330,'decrement').setScale(0.3).setInteractive();
+        decrement.visible = false;
+
+        //reset button
+        reset = this.add.image(200,410,'reset').setScale(0.3).setInteractive();
+        reset.visible = false;
+
+        //button fxns
+        connect.on('pointerdown', async () => {
+            await Connect();
+        })
+        
+        disconnect.on('pointerdown', async () => {
+            await Connect();
+        })
+        
+        increment.on('pointerdown', async () => {
+            await Increment();
+        })
+        
+        decrement.on('pointerdown', async () => {
+            await Decrement();
+        })
+        
+        reset.on('pointerdown', async () => {
+            await Reset();
+        })
+    }
+
+    function update()
+    {
+    }
+
+    //button functionality
+
+    //connect
+    async function Connect()
+    {
+        if(!isConnected){
+            try {await kit.openModal({
+                    onWalletSelected: async option => {
+                        try {
+                            kit.setWallet(option.id);
+                            const { address } = await kit.getAddress();
+                            setPublicKey(address);
+                            await addressValue.setText("User: " + address);
+                            await contentStatus(true);
+                        }catch (e) {
+                            console.error(e);
+                        }
+                    }
+                });
+            } catch (e) {
+                console.error(e);
+            }
+
+            await GetCurrentValue();
+        }else{
+            addressValue.setText(" ");
+            await contentStatus(false);
+        }
+    }
+
+    //display items when connected
+    async function contentStatus(state: boolean)
+    {
+        connect.visible = !state;
+
+        addressValue.visible = state;
+        valueText.visible = state;
+        disconnect.visible = state;
+        increment.visible = state;
+        decrement.visible = state;
+        reset.visible = state;
+        
+        isConnected = state;
+    }
+
+    //increment
+    async function Increment() {
+        const publicKey = loadedPublicKey();
+
+        if (!publicKey) {
+            alert("Please connect your wallet first");
+            return;
+        } else {
+            incrementContract.options.publicKey = publicKey;
+        }
+
+        const tx = await incrementContract.increment();
+
+        try {
+            const { result } = await tx.signAndSend({
+                signTransaction: async (xdr) => {
+                    const { signedTxXdr } = await kit.signTransaction(xdr);
+                    return signedTxXdr;
+                },
+            });
+
+            await valueText.setText(result);
+        }catch (e) {
+            console.error(e);
+        }
+    }
+
+    //decrement
+    async function Decrement() {
+        const publicKey = loadedPublicKey();
+
+        if (!publicKey) {
+            alert("Please connect your wallet first");
+            return;
+        } else {
+            incrementContract.options.publicKey = publicKey;
+        }
+
+        const tx = await incrementContract.decrement();
+
+        try {
+            const { result } = await tx.signAndSend({
+                signTransaction: async (xdr) => {
+                    const { signedTxXdr } = await kit.signTransaction(xdr);
+                    return signedTxXdr;
+                },
+            });
+
+            await valueText.setText(result);
+        }catch (e) {
+            console.error(e);
+        }
+    }
+
+    //reset
+    async function Reset() {
+        const publicKey = loadedPublicKey();
+
+        if (!publicKey) {
+            alert("Please connect your wallet first");
+            return;
+        } else {
+            incrementContract.options.publicKey = publicKey;
+        }
+
+        const tx = await incrementContract.reset();
+
+        try {
+            const { result } = await tx.signAndSend({
+                signTransaction: async (xdr) => {
+                    const { signedTxXdr } = await kit.signTransaction(xdr);
+                    return signedTxXdr;
+                },
+            });
+
+            await valueText.setText(result);
+        }catch (e) {
+            console.error(e);
+        }
+    }
+
+    //current value 
+    async function GetCurrentValue()
+    {
+        const publicKey = loadedPublicKey();
+
+        if (!publicKey) {
+            alert("Please connect your wallet first");
+            return;
+        } else {
+            incrementContract.options.publicKey = publicKey;
+        }
+
+        const tx = await incrementContract.get_current_value();
+
+        await valueText.setText(tx.result);
+    }
+
+</script>
