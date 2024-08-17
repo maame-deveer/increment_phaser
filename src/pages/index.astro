@@ -1,9 +1,9 @@
 ---
 import Layout from "../layouts/Layout.astro";
 import Card from "../components/Card.astro";
-import helloWorld from "../contracts/hello_world";
-const { result } = await helloWorld.hello({ to: "you" });
-const greeting = result.join(" ");
+import incrementContract from "../contracts/soroban_increment_contract";
+const {result} = await incrementContract.get_current_value();
+const greeting = result;
 ---
 
 <script is:inline>var global = global || window;</script>
